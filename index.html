@@ -1,0 +1,163 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英語單詞搶答遊戲</title>
+    <!-- 使用 Tailwind CSS 進行排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0fdf4; }
+        .hidden-screen { display: none !important; }
+        .bounce { animation: bounce 1s infinite; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-15%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+            50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col">
+
+    <header class="bg-green-600 text-white p-4 shadow-md text-center shrink-0 flex justify-between items-center px-6">
+        <div class="w-10"></div>
+        <h1 class="text-2xl font-bold">🎯 英語單詞搶答賽</h1>
+        <div id="host-badge" class="hidden bg-yellow-400 text-yellow-900 text-xs font-black px-2.5 py-1 rounded-full shadow-sm">👑 房主</div>
+    </header>
+
+    <!-- 訊息提示框 -->
+    <div id="msg-box" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 hidden transition-opacity duration-300">
+        <span id="msg-text">訊息</span>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 flex justify-center items-start pt-10">
+        
+        <!-- 畫面 1：登入與自動加入 -->
+        <div id="screen-home" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+            <h2 class="text-xl font-semibold mb-4 text-center">準備進入遊戲</h2>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">你的暱稱</label>
+                <input type="text" id="input-name" placeholder="輸入你的名字" class="w-full border-2 border-gray-300 rounded-lg p-3 focus:outline-none focus:border-green-500 text-lg">
+            </div>
+
+            <button id="btn-enter-game" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition mt-4 shadow-md">進入遊戲</button>
+            <p id="loading-words-msg" class="text-sm text-gray-500 text-center mt-3 animate-pulse">正在自動載入字庫中...</p>
+            
+            <!-- 強制重置安全按鈕 -->
+            <div class="mt-8 pt-4 border-t border-gray-100 text-center">
+                <button id="btn-force-reset" class="text-xs text-red-400 hover:text-red-600 underline">⚠️ 當機或卡死？強制初始化房間</button>
+            </div>
+        </div>
+
+        <!-- 畫面 2：大廳等待區 -->
+        <div id="screen-lobby" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-6 text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">等待玩家加入</h2>
+            <p class="text-sm text-gray-500 mb-6">所有在同一網頁的人都會進入此大廳</p>
+
+            <div class="text-left mb-6">
+                <h3 class="font-bold text-lg mb-2">已加入玩家： (<span id="player-count">0</span>)</h3>
+                <ul id="player-list" class="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 text-lg">
+                    <!-- 玩家列表生成區 -->
+                </ul>
+            </div>
+
+            <button id="btn-start-game" class="hidden w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl text-xl transition shadow-lg animate-pulse">
+                房主專屬：開始遊戲！
+            </button>
+            <p id="wait-host-msg" class="text-gray-500 italic">等待房主開始遊戲...</p>
+        </div>
+
+        <!-- 畫面 3：遊戲進行中 (高度緊湊手機版面) -->
+        <div id="screen-game" class="hidden-screen w-full max-w-3xl grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- 左側/上方：主要遊戲區 -->
+            <div class="md:col-span-2 bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center min-h-[380px] relative text-center">
+                
+                <!-- 狀態顯示與倒數計時 -->
+                <div class="w-full flex justify-between items-center mb-4 px-2 h-8 border-b border-gray-100 pb-2 shrink-0">
+                    <div id="game-status-text" class="text-lg font-bold text-blue-600">準備中...</div>
+                    <!-- 10秒倒數計時 UI -->
+                    <div id="countdown-wrapper" class="hidden flex items-center gap-1 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                        <span class="text-xs text-red-500 font-semibold animate-pulse">⏳ 剩餘:</span>
+                        <span id="countdown-text" class="text-sm font-bold text-red-600 font-mono">10</span>秒
+                    </div>
+                </div>
+                
+                <!-- 中文提示字 -->
+                <div id="chinese-word" class="text-5xl font-black text-gray-800 mb-6 h-20 flex items-center justify-center w-full">
+                    <!-- 中文單字出現在這 -->
+                </div>
+
+                <!-- 搶答輸入區 (小寫英文，電競質感) -->
+                <div id="answer-section" class="w-full max-w-sm hidden">
+                    <div class="relative">
+                        <input type="text" id="input-answer" autocomplete="off" placeholder="在此輸入英文單字..." class="w-full border-4 border-gray-200 rounded-2xl p-4 text-3xl text-center focus:outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100 font-mono shadow-inner mb-4 transition-all tracking-widest text-gray-700 placeholder-gray-300 lowercase">
+                        <div class="absolute right-4 top-5 text-gray-300 animate-pulse text-2xl">⌨️</div>
+                    </div>
+                    <button id="btn-submit-answer" class="w-full bg-gradient-to-b from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black py-4 rounded-xl text-xl shadow-[0_4px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1 transition-all">
+                        🚀 送出搶答！
+                    </button>
+                </div>
+
+                <!-- 回合結果顯示區 (完全緊湊，防止手機超出邊界) -->
+                <div id="round-result-section" class="hidden w-full flex flex-col items-center justify-center py-2">
+                    <div id="round-result-winner-title" class="text-3xl font-bold text-green-600 mb-1 bounce">🎉 搶答成功！</div>
+                    <div id="round-winner-container" class="text-lg text-gray-700 mb-3">得勝者：<span id="round-winner-name" class="font-bold text-blue-600"></span></div>
+                    
+                    <!-- 霸屏英文單字 (全小寫，大小合適) -->
+                    <div id="correct-answer-text" class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600 tracking-widest lowercase drop-shadow-md my-2"></div>
+                </div>
+
+            </div>
+
+            <!-- 右側/下方：計分板 -->
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <h3 class="font-bold text-xl mb-4 border-b-2 border-gray-100 pb-2 flex justify-between">
+                    <span>計分板</span>
+                    <span class="text-sm font-normal text-gray-500">第 <span id="current-round-text">1</span> 關</span>
+                </h3>
+                <ul id="scoreboard-list" class="space-y-4">
+                    <!-- 計分板生成區 (內含棒形條) -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 畫面 4：遊戲結束結算 -->
+        <div id="screen-finished" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+            <h2 class="text-4xl font-black text-yellow-500 mb-2">🏆 遊戲結束</h2>
+            <p class="text-gray-600 mb-6">感謝大家的參與！</p>
+            
+            <div class="bg-yellow-50 rounded-xl p-6 mb-6 border-2 border-yellow-200">
+                <h3 class="text-xl font-bold text-gray-800 mb-2">最終冠軍</h3>
+                <div id="final-winner-name" class="text-3xl font-black text-blue-600"></div>
+                <div class="text-lg text-gray-600 mt-2">總得分：<span id="final-winner-score"></span> 分</div>
+            </div>
+
+            <!-- 不會回答生詞按鈕與展示區 -->
+            <div class="mb-6 text-left">
+                <button id="btn-show-failed-words" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition text-center">
+                    📖 查看本次不會回答的生詞
+                </button>
+                <div id="failed-words-container" class="hidden mt-3 p-3 bg-red-50 border border-red-100 rounded-lg max-h-32 overflow-y-auto">
+                    <ul id="failed-words-list" class="list-disc list-inside text-sm text-red-700 space-y-1">
+                        <!-- 沒人答對的生詞清單 -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 重新開局按鈕 -->
+            <div id="restart-action-section" class="space-y-3">
+                <button id="btn-restart-lobby" class="w-full bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition shadow-md">
+                    🎮 重置分數並回大廳 (重新開局)
+                </button>
+                <p id="wait-restart-msg" class="text-sm text-gray-500 italic hidden">等待房主重新開局中...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <script type="module" src="script.js"></script>
+
+</body>
+</html>
