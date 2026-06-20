@@ -1,10 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import {
   getAuth,
   signInAnonymously,
   signInWithCustomToken,
   onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 import {
   getFirestore,
   doc,
@@ -13,7 +13,7 @@ import {
   updateDoc,
   onSnapshot,
   deleteDoc,
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 /* ==========================================
            配置 Firebase
@@ -64,11 +64,7 @@ let gameWords = [
   { en: "snake", zh: "蛇" },
 ];
 
-/* ==========================================
-           自動載入字庫 (從你的 Google Apps Script)
-           ========================================== */
-const gasUrl =
-  "https://script.google.com/macros/s/AKfycbwpuWk23qqR7-TCCWUcesT0L-OJ-zfUfG6-e4_Asn_QYS1uNNrGgGiBInl7tYfBdvbjtg/exec";
+const gasUrl = "word.json";
 
 fetch(gasUrl)
   .then((response) => response.json())
