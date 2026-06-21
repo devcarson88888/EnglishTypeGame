@@ -15,30 +15,23 @@ import {
   deleteDoc,
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-/* ==========================================
-           配置 Firebase
-           ========================================== */
-let firebaseConfig;
-let appId = "word-buzzer-game";
-
-if (typeof __firebase_config !== "undefined") {
-  firebaseConfig = JSON.parse(__firebase_config);
-  if (typeof __app_id !== "undefined") appId = __app_id;
-} else {
-  firebaseConfig = {
-    apiKey: "AIzaSyDpo4XeuQ-CpUBrRjfp9F6lHodCaHnPEPA",
-    authDomain: "engchivocmanypeoplevs.firebaseapp.com",
-    projectId: "engchivocmanypeoplevs",
-    storageBucket: "engchivocmanypeoplevs.firebasestorage.app",
-    messagingSenderId: "756895087254",
-    appId: "1:756895087254:web:cb718b984540fbaf0220b7",
-    measurementId: "G-QRQMKRH1QP",
-  };
-}
-
+const firebaseConfig =
+  typeof __firebase_config !== "undefined"
+    ? JSON.parse(__firebase_config)
+    : {
+        apiKey: "AIzaSyDpo4XeuQ-CpUBrRjfp9F6lHodCaHnPEPA",
+        authDomain: "engchivocmanypeoplevs.firebaseapp.com",
+        projectId: "engchivocmanypeoplevs",
+        storageBucket: "engchivocmanypeoplevs.firebasestorage.app",
+        messagingSenderId: "756895087254",
+        appId: "1:756895087254:web:cb718b984540fbaf0220b7",
+        measurementId: "G-QRQMKRH1QP",
+      };
+const appId = typeof __app_id !== "undefined" ? __app_id : "word-buzzer-game";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const $ = (id) => document.getElementById(id);
 
 /* ==========================================
            全域變數與遊戲狀態
@@ -64,7 +57,7 @@ let gameWords = [
   { en: "snake", zh: "蛇" },
 ];
 
-const gasUrl = "word.json";
+const gasUrl = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnSjyZK1ykkYrBdvD24hR23BK4TETpb28pGyhCFS_8JSzGpIa2ZaqQT6peNTieQYLVgY_RV4WvDsNK3mbZd4RXNkISWXQZgrSc_CRkMHGWth9T2CX6YWHiqkm9XhKZn7ZmOh6Z4XxohZ4kC3UWAn0sxuN7QfeN4DXH1IFRFOHhaW3G8x9GV3gQSDAzyIqZihrj1r174HhIKIVxX7G6FS-T99fuo4Xwd2XbCDQJMgMGyHi8SX9BiW-X9uSUekVzOjFXPuDDDGGeTZpfwkXncipWYC72Zjjg&lib=Mc1yGkNdKciL5Ko-4IwkNZlaZoCQtfs3_";
 
 fetch(gasUrl)
   .then((response) => response.json())
@@ -132,21 +125,20 @@ const UI = {
 /* ==========================================
            通用輔助函數
            ========================================== */
-function showScreen(screenName) {
+const showScreen = (name) => {
   Object.values(UI.screens).forEach((s) => s.classList.add("hidden-screen"));
-  UI.screens[screenName].classList.remove("hidden-screen");
-}
+  UI.screens[name].classList.remove("hidden-screen");
+};
 
-function showMsg(text) {
-  const msgBox = document.getElementById("msg-box");
-  document.getElementById("msg-text").textContent = text;
+const showMsg = (text) => {
+  $("msg-text").textContent = text;
+  const msgBox = $("msg-box");
   msgBox.classList.remove("hidden");
   setTimeout(() => msgBox.classList.add("hidden"), 3000);
-}
+};
 
-function getRoomDoc(roomId) {
-  return doc(db, "artifacts", appId, "public", "data", "rooms", roomId);
-}
+const getRoomDoc = (roomId) =>
+  doc(db, "artifacts", appId, "public", "data", "rooms", roomId);
 
 /* ==========================================
            初始化與認證
@@ -177,14 +169,8 @@ initAuth();
            ========================================== */
 UI.home.btnEnter.onclick = async () => {
   const enteredName = UI.home.name.value.trim();
-  if (!enteredName) {
-    showMsg("請先輸入你的暱稱！");
-    return;
-  }
-  if (!myUid) {
-    showMsg("正在連線中，請稍候...");
-    return;
-  }
+  if (!enteredName) return showMsg("請先輸入你的暱稱！");
+  if (!myUid) return showMsg("正在連線中，請稍候...");
 
   UI.home.btnEnter.disabled = true;
   UI.home.btnEnter.textContent = "連線確認中...";
@@ -192,71 +178,49 @@ UI.home.btnEnter.onclick = async () => {
   try {
     const roomRef = getRoomDoc(GLOBAL_ROOM_ID);
     const roomSnap = await getDoc(roomRef);
-
     let finalName = enteredName;
 
     if (roomSnap.exists()) {
       const data = roomSnap.data();
-
-      // 防中途加入限制
-      if (data.status === "playing") {
-        if (!data.players || !data.players[myUid]) {
-          showMsg("🚫 遊戲正在進行中，無法中途加入！請稍候再試。");
-          UI.home.btnEnter.disabled = false;
-          UI.home.btnEnter.textContent = "進入遊戲";
-          return;
-        }
+      if (data.status === "playing" && !data.players?.[myUid]) {
+        showMsg("🚫 遊戲正在進行中，無法中途加入！請稍候再試。");
+        UI.home.btnEnter.disabled = false;
+        UI.home.btnEnter.textContent = "進入遊戲";
+        return;
       }
-
-      // 重名檢索機制
-      const existingNames = Object.values(data.players || {}).map(
-        (p) => p.name,
-      );
-      if (
-        existingNames.includes(finalName) &&
-        (!data.players || !data.players[myUid])
-      ) {
+      const existingNames = Object.values(data.players || {}).map((p) => p.name);
+      if (existingNames.includes(finalName) && !data.players?.[myUid]) {
         let counter = 1;
-        while (existingNames.includes(`${enteredName} (${counter})`)) {
-          counter++;
-        }
+        while (existingNames.includes(`${enteredName} (${counter})`)) counter++;
         finalName = `${enteredName} (${counter})`;
         showMsg(`發現重複暱稱，已為你更名為: ${finalName}`);
       }
-
       myName = finalName;
       isHost = data.host === myUid;
-
       const newPlayers = { ...data.players };
       if (!newPlayers[myUid]) {
         newPlayers[myUid] = { name: myName, score: 0 };
         await updateDoc(roomRef, { players: newPlayers });
-      } else {
-        myName = newPlayers[myUid].name;
-      }
-
+      } else myName = newPlayers[myUid].name;
       listenToRoom(GLOBAL_ROOM_ID);
       showScreen(data.status === "playing" ? "game" : "lobby");
-    } else {
-      myName = finalName;
-      isHost = true;
-      const roomData = {
-        roomId: GLOBAL_ROOM_ID,
-        host: myUid,
-        status: "lobby",
-        phase: "waiting",
-        words: gameWords,
-        currentWordIndex: 0,
-        players: {
-          [myUid]: { name: myName, score: 0 },
-        },
-        roundWinner: null,
-        failedWords: [],
-      };
-      await setDoc(roomRef, roomData);
-      listenToRoom(GLOBAL_ROOM_ID);
-      showScreen("lobby");
+      return;
     }
+    myName = finalName;
+    isHost = true;
+    await setDoc(roomRef, {
+      roomId: GLOBAL_ROOM_ID,
+      host: myUid,
+      status: "lobby",
+      phase: "waiting",
+      words: gameWords,
+      currentWordIndex: 0,
+      players: { [myUid]: { name: myName, score: 0 } },
+      roundWinner: null,
+      failedWords: [],
+    });
+    listenToRoom(GLOBAL_ROOM_ID);
+    showScreen("lobby");
   } catch (err) {
     console.error("加入房間失敗:", err);
     showMsg("進入遊戲失敗！");
@@ -282,74 +246,61 @@ UI.home.btnForceReset.onclick = async () => {
 /* ==========================================
            STREAMING_CHUNK: 建立資料庫即時監聽與狀態分發器...
            ========================================== */
-function listenToRoom(roomId) {
+const listenToRoom = (roomId) => {
   if (roomUnsubscribe) roomUnsubscribe();
-
   roomUnsubscribe = onSnapshot(
     getRoomDoc(roomId),
     async (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        localRoomState = data;
-
-        // 房主斷線自動轉移
-        const playerIds = Object.keys(data.players || {});
-        if (playerIds.length > 0 && !data.players[data.host]) {
-          const newHost = playerIds[0];
-          console.log(`房主斷線，由 ${data.players[newHost].name} 繼承權限`);
-          try {
-            await updateDoc(getRoomDoc(roomId), { host: newHost });
-          } catch (e) {
-            console.error("房主權限轉移失敗:", e);
-          }
-          return;
-        }
-
-        handleStateChange(data);
-      } else {
+      if (!docSnap.exists()) {
         showScreen("home");
         UI.home.btnEnter.disabled = false;
         UI.home.btnEnter.textContent = "進入遊戲";
-        showMsg("房間已被管理員重置。");
+        return showMsg("房間已被管理員重置。");
       }
+      const data = docSnap.data();
+      localRoomState = data;
+      const playerIds = Object.keys(data.players || {});
+      if (playerIds.length && !data.players[data.host]) {
+        const newHost = playerIds[0];
+        console.log(`房主斷線，由 ${data.players[newHost].name} 繼承權限`);
+        try {
+          await updateDoc(getRoomDoc(roomId), { host: newHost });
+        } catch (e) {
+          console.error("房主權限轉移失敗:", e);
+        }
+        return;
+      }
+      handleStateChange(data);
     },
-    (error) => {
-      console.error("即時監聽出錯:", error);
-    },
+    (error) => console.error("即時監聽出錯:", error),
   );
-}
+};
 
-function handleStateChange(state) {
+const handleStateChange = (state) => {
   isHost = state.host === myUid;
-
-  if (isHost) {
-    document.getElementById("host-badge").classList.remove("hidden");
-  } else {
-    document.getElementById("host-badge").classList.add("hidden");
-  }
-
-  if (state.status === "lobby") {
-    updateLobbyUI(state);
-  } else if (state.status === "playing") {
+  $("host-badge").classList.toggle("hidden", !isHost);
+  if (state.status === "lobby") updateLobbyUI(state);
+  else if (state.status === "playing") {
     if (
-      UI.screens.lobby.classList.contains("hidden-screen") === false ||
-      UI.screens.home.classList.contains("hidden-screen") === false
-    ) {
+      !UI.screens.lobby.classList.contains("hidden-screen") ||
+      !UI.screens.home.classList.contains("hidden-screen")
+    )
       showScreen("game");
-    }
     updateGameUI(state);
   } else if (state.status === "finished") {
     showScreen("finished");
     updateFinishedUI(state);
   }
-}
+};
 
 /* ==========================================
            各狀態畫面更新與定時器邏輯
            ========================================== */
 
 // 1. 大廳 UI
-function updateLobbyUI(state) {
+const toggleHidden = (el, hidden) => el.classList.toggle("hidden", hidden);
+
+const updateLobbyUI = (state) => {
   if (answerTimerInterval) {
     clearInterval(answerTimerInterval);
     answerTimerInterval = null;
@@ -358,124 +309,96 @@ function updateLobbyUI(state) {
     clearTimeout(nextRoundTimeoutId);
     nextRoundTimeoutId = null;
   }
-  window.roundTimer = null;
-
-  const playerIds = Object.keys(state.players);
-  UI.lobby.playerCount.textContent = playerIds.length;
-
+  const players = Object.entries(state.players || {});
+  UI.lobby.playerCount.textContent = players.length;
   UI.lobby.playerList.innerHTML = "";
-  playerIds.forEach((uid) => {
-    const p = state.players[uid];
+  players.forEach(([uid, p]) => {
     const li = document.createElement("li");
-    li.className = `p-3 rounded-lg flex justify-between items-center ${uid === state.host ? "bg-yellow-50 border border-yellow-200 font-bold" : "bg-gray-50 border border-gray-100"}`;
-
-    let identityText = "";
-    if (uid === state.host) identityText += " 👑 房主";
-    if (uid === myUid) identityText += " (你)";
-
+    li.className = `p-3 rounded-lg flex justify-between items-center ${
+      uid === state.host
+        ? "bg-yellow-50 border border-yellow-200 font-bold"
+        : "bg-gray-50 border border-gray-100"
+    }`;
     li.innerHTML = `
-                    <span>👤 ${p.name}</span>
-                    <span class="text-xs text-gray-400 font-normal">${identityText}</span>
-                `;
+      <span>👤 ${p.name}</span>
+      <span class="text-xs text-gray-400 font-normal">${
+        uid === state.host ? " 👑 房主" : ""
+      }${uid === myUid ? " (你)" : ""}</span>
+    `;
     UI.lobby.playerList.appendChild(li);
   });
-
-  if (isHost) {
-    UI.lobby.btnStart.classList.remove("hidden");
-    UI.lobby.waitMsg.classList.add("hidden");
-  } else {
-    UI.lobby.btnStart.classList.add("hidden");
-    UI.lobby.waitMsg.classList.remove("hidden");
-  }
-}
-
-UI.lobby.btnStart.onclick = async () => {
-  if (isHost && localRoomState) {
-    await updateDoc(getRoomDoc(currentRoomId), {
-      status: "playing",
-      phase: "reading",
-      currentWordIndex: 0,
-      failedWords: [],
-    });
-  }
+  toggleHidden(UI.lobby.btnStart, !isHost);
+  toggleHidden(UI.lobby.waitMsg, isHost);
 };
 
-/* ==========================================
-           STREAMING_CHUNK: 管理搶答倒數與遊戲主畫面渲染...
-           ========================================== */
-function updateGameUI(state) {
-  updateScoreboard(state);
+UI.lobby.btnStart.onclick = async () => {
+  if (!isHost || !localRoomState) return;
+  await updateDoc(getRoomDoc(GLOBAL_ROOM_ID), {
+    status: "playing",
+    phase: "reading",
+    currentWordIndex: 0,
+    failedWords: [],
+  });
+};
 
+const updateGameUI = (state) => {
+  updateScoreboard(state);
   const currentWord = state.words[state.currentWordIndex];
   UI.game.currentRound.textContent = state.currentWordIndex + 1;
-
   if (state.phase !== "answering") {
     if (answerTimerInterval) {
       clearInterval(answerTimerInterval);
       answerTimerInterval = null;
     }
-    document.getElementById("countdown-wrapper").classList.add("hidden");
+    $("countdown-wrapper").classList.add("hidden");
   }
-
-  // A. 聽單字階段
   if (state.phase === "reading") {
     UI.game.statusText.textContent = "🔊 準備聽單字...";
     UI.game.statusText.className = "text-xl font-bold text-blue-600";
     UI.game.chineseWord.textContent = currentWord.zh;
-
     UI.game.answerSection.classList.add("hidden");
     UI.game.roundResultSection.classList.add("hidden");
     UI.game.inputAnswer.value = "";
-
-    if (!hasSpokenThisRound) {
+    if (!hasSpokenThisRound && isHost) {
       hasSpokenThisRound = true;
-      if (isHost) {
-        speakWord(currentWord.en, 3, async () => {
-          await updateDoc(getRoomDoc(currentRoomId), { phase: "answering" });
-        });
-      }
+      speakWord(currentWord.en, 3, async () => {
+        await updateDoc(getRoomDoc(GLOBAL_ROOM_ID), { phase: "answering" });
+      });
     }
+    return;
   }
-  // B. 拼字搶答階段
-  else if (state.phase === "answering") {
+  if (state.phase === "answering") {
     hasSpokenThisRound = false;
     UI.game.statusText.textContent = "⌨️ 快點拼寫出英文單字！";
     UI.game.statusText.className =
       "text-xl font-bold text-red-500 animate-pulse";
     UI.game.chineseWord.textContent = currentWord.zh;
-
     UI.game.answerSection.classList.remove("hidden");
     UI.game.roundResultSection.classList.add("hidden");
     UI.game.inputAnswer.focus();
-
-    // 10 秒倒數計時
     if (!answerTimerInterval) {
       let timeLeft = 15;
-      const countdownWrapper = document.getElementById("countdown-wrapper");
-      const countdownText = document.getElementById("countdown-text");
-
+      const countdownWrapper = $("countdown-wrapper");
+      const countdownText = $("countdown-text");
       countdownWrapper.classList.remove("hidden");
       countdownText.textContent = timeLeft;
-
       answerTimerInterval = setInterval(async () => {
         timeLeft--;
         countdownText.textContent = timeLeft;
-
         if (timeLeft <= 0) {
           clearInterval(answerTimerInterval);
           answerTimerInterval = null;
           countdownWrapper.classList.add("hidden");
-
           if (isHost) {
             try {
-              // 將這個沒人答對的字加入失敗庫
-              const updatedFailedWords = localRoomState.failedWords || [];
-              updatedFailedWords.push(currentWord);
-
-              await updateDoc(getRoomDoc(currentRoomId), {
+              const failedWords = [
+                ...(localRoomState.failedWords || []),
+                currentWord,
+              ];
+              await updateDoc(getRoomDoc(GLOBAL_ROOM_ID), {
                 phase: "round_end",
                 roundWinner: "timeout",
-                failedWords: updatedFailedWords,
+                failedWords,
               });
             } catch (err) {
               console.error("超時寫入出錯:", err);
@@ -484,98 +407,111 @@ function updateGameUI(state) {
         }
       }, 1000);
     }
+    return;
   }
-  // C. 回合結束 (霸屏顯示，5秒自動前往下一題)
-  else if (state.phase === "round_end") {
-    hasSpokenThisRound = false;
-    UI.game.statusText.textContent = "⏳ 回合結束，準備下一題";
-    UI.game.statusText.className = "text-xl font-bold text-gray-500";
-
-    UI.game.answerSection.classList.add("hidden");
-    UI.game.roundResultSection.classList.remove("hidden");
-
-    const resultTitle = document.getElementById("round-result-winner-title");
-    const winnerContainer = document.getElementById("round-winner-container");
-
-    if (state.roundWinner === "timeout") {
-      resultTitle.textContent = "⏰ 答題超時！無人拼對";
-      resultTitle.className = "text-4xl font-bold text-red-500 mb-2 bounce";
-      winnerContainer.classList.add("hidden");
-    } else {
-      resultTitle.textContent = "🎉 搶答成功！";
-      resultTitle.className = "text-3xl font-bold text-green-600 mb-1 bounce";
-      winnerContainer.classList.remove("hidden");
-      const winnerName = state.players[state.roundWinner]?.name || "未知";
-      UI.game.roundWinnerName.textContent = winnerName;
-    }
-
-    // 以全小寫形式顯示正確答案
-    UI.game.correctAnswerText.textContent = currentWord.en;
-
-    // 房主控制 5秒 後進入下一關
-    if (isHost) {
-      if (!nextRoundTimeoutId) {
-        nextRoundTimeoutId = setTimeout(async () => {
-          nextRoundTimeoutId = null;
-          const nextIndex = state.currentWordIndex + 1;
-
-          if (nextIndex >= state.words.length) {
-            await updateDoc(getRoomDoc(currentRoomId), { status: "finished" });
-          } else {
-            await updateDoc(getRoomDoc(currentRoomId), {
-              currentWordIndex: nextIndex,
-              phase: "reading",
-              roundWinner: null,
-            });
-          }
-        }, 5000); // 展示 5 秒加深印象
+  hasSpokenThisRound = false;
+  UI.game.statusText.textContent = "⏳ 回合結束，準備下一題";
+  UI.game.statusText.className = "text-xl font-bold text-gray-500";
+  UI.game.answerSection.classList.add("hidden");
+  UI.game.roundResultSection.classList.remove("hidden");
+  const resultTitle = $("round-result-winner-title");
+  const winnerContainer = $("round-winner-container");
+  if (state.roundWinner === "timeout") {
+    resultTitle.textContent = "⏰ 答題超時！無人拼對";
+    resultTitle.className = "text-4xl font-bold text-red-500 mb-2 bounce";
+    winnerContainer.classList.add("hidden");
+  } else {
+    resultTitle.textContent = "🎉 搶答成功！";
+    resultTitle.className = "text-3xl font-bold text-green-600 mb-1 bounce";
+    winnerContainer.classList.remove("hidden");
+    UI.game.roundWinnerName.textContent =
+      state.players[state.roundWinner]?.name || "未知";
+  }
+  UI.game.correctAnswerText.textContent = currentWord.en;
+  if (isHost && !nextRoundTimeoutId) {
+    nextRoundTimeoutId = setTimeout(async () => {
+      nextRoundTimeoutId = null;
+      const nextIndex = state.currentWordIndex + 1;
+      if (nextIndex >= state.words.length) {
+        await updateDoc(getRoomDoc(GLOBAL_ROOM_ID), { status: "finished" });
+      } else {
+        await updateDoc(getRoomDoc(GLOBAL_ROOM_ID), {
+          currentWordIndex: nextIndex,
+          phase: "reading",
+          roundWinner: null,
+        });
       }
-    }
+    }, 5000);
   }
-}
+};
 
 /* ==========================================
            STREAMING_CHUNK: 渲染計分板與動態橫向能量棒...
            ========================================== */
-function updateScoreboard(state) {
+const updateScoreboard = (state) => {
+  // 清空排行榜
   UI.game.scoreboard.innerHTML = "";
-  const sortedPlayers = Object.entries(state.players).sort(
-    (a, b) => b[1].score - a[1].score,
-  );
 
-  const totalWords =
-    state.words && state.words.length > 0 ? state.words.length : 1;
+  // 避免除零错误，至少为 1
+  const totalWords = Math.max(state.words?.length || 1, 1);
 
-  sortedPlayers.forEach(([uid, p], index) => {
-    const li = document.createElement("li");
-    li.className = `flex flex-col p-3 rounded-xl shadow-sm gap-1.5 transition-all duration-300 ${uid === myUid ? "bg-blue-50 border border-blue-200" : "bg-gray-50 border border-gray-100"}`;
+  // 遍历玩家并按分数排序
+  Object.entries(state.players || {})
+    .sort(([, a], [, b]) => b.score - a.score)
+    .forEach(([uid, p], index) => {
+      const li = document.createElement("li");
 
-    let medal = "";
-    if (index === 0 && p.score > 0) medal = "🥇 ";
-    else if (index === 1 && p.score > 0) medal = "🥈 ";
-    else if (index === 2 && p.score > 0) medal = "🥉 ";
+      // 根据是否是自己设置不同的背景样式
+      li.className = `flex flex-col p-3 rounded-xl shadow-sm gap-1.5 transition-all duration-300 ${
+        uid === myUid
+          ? "bg-blue-50 border border-blue-200"
+          : "bg-gray-50 border border-gray-100"
+      }`;
 
-    const progress = Math.min((p.score / totalWords) * 100, 100);
+      // 奖牌逻辑：前三名且分数大于 0
+      const medal =
+        index === 0 && p.score > 0
+          ? "🥇 "
+          : index === 1 && p.score > 0
+          ? "🥈 "
+          : index === 2 && p.score > 0
+          ? "🥉 "
+          : "";
 
-    li.innerHTML = `
-                    <div class="flex justify-between items-center w-full">
-                        <span class="font-semibold text-gray-700">${medal}${p.name} ${uid === myUid ? "(你)" : ""}</span>
-                        <span class="font-bold text-lg text-blue-600">${p.score} 分</span>
-                    </div>
-                    <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
-                        <div class="bg-green-500 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
-                    </div>
-                `;
-    UI.game.scoreboard.appendChild(li);
-  });
-}
+      // 进度条百分比
+      const progress = Math.min((p.score / totalWords) * 100, 100);
+
+      // 排行榜项内容
+      li.innerHTML = `
+        <div class="flex justify-between items-center w-full">
+          <span class="font-semibold text-gray-700">
+            ${medal}${p.name}${uid === myUid ? " (你)" : ""}
+          </span>
+          <span class="font-bold text-lg text-blue-600">${p.score} 分</span>
+        </div>
+        <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+          <div class="bg-green-500 h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+        </div>
+      `;
+
+      // 添加到排行榜
+      UI.game.scoreboard.appendChild(li);
+    });
+};
 
 /* ==========================================
            搶答提交邏輯 (全小寫處理)
            ========================================== */
-UI.game.btnSubmit.onclick = submitAnswer;
+// 防止按鈕或輸入框觸發表單預設提交導致整頁重新整理
+UI.game.btnSubmit.addEventListener("click", function (e) {
+  e.preventDefault();
+  submitAnswer();
+});
 UI.game.inputAnswer.addEventListener("keypress", function (e) {
-  if (e.key === "Enter") submitAnswer();
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitAnswer();
+  }
 });
 
 async function submitAnswer() {
@@ -695,45 +631,29 @@ UI.finished.btnRestartLobby.onclick = async () => {
            ========================================== */
 window.activeUtterances = [];
 
-function speakWord(word, times, callback) {
+const speakWord = (word, times, callback) => {
   if (!("speechSynthesis" in window)) {
     console.warn("此設備不支援語音合成");
     if (callback) setTimeout(callback, 2000);
     return;
   }
-
-  // 先完全取消先前的所有語音隊列
   window.speechSynthesis.cancel();
-
-  // 🌟 1. 建立暖身延遲時間 (600 毫秒靜置載入時間)，給瀏覽器音效通道充足的暖機時間
   setTimeout(() => {
-    // 🌟 2. 將多次發音組合為一個句子，利用標點符號製造自然且剛好約 1 秒的停頓
-    // 這種方法在 iOS, Android 與各式手機瀏覽器中穩定度最高，發音最流暢，不卡頓不重疊！
     const textToSpeak = Array(times).fill(word).join(", . . . . ");
-
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = "en-US";
-    utterance.rate = 0.82; // 稍微放慢一點，發音更清晰好聽
-
-    // 綁定全域，防止瀏覽器記憶體回收機制 (GC) 中途將其刪除
+    utterance.rate = 0.82;
     window.activeUtterances = [utterance];
-
-    let callbackFired = false;
-    const triggerNext = () => {
-      if (!callbackFired) {
-        callbackFired = true;
-        window.activeUtterances = []; // 發音完釋放
-        if (callback) callback();
-      }
+    let fired = false;
+    const done = () => {
+      if (fired) return;
+      fired = true;
+      window.activeUtterances = [];
+      if (callback) callback();
     };
-
-    utterance.onend = triggerNext;
-    utterance.onerror = triggerNext;
-
-    // 備用安全超時防卡死護欄
-    const estimatedTime = times * 2000 + 1500;
-    setTimeout(triggerNext, estimatedTime);
-
+    utterance.onend = done;
+    utterance.onerror = done;
+    setTimeout(done, times * 2000 + 1500);
     window.speechSynthesis.speak(utterance);
-  }, 600); // 600ms 靜置，確保晶片與通道重置完畢，不吃音
-}
+  }, 600);
+};
