@@ -8,9 +8,40 @@
     <!-- 使用 Tailwind CSS 進行排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0fdf4; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { min-height: 100%; margin: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at top, #f1fdf7 0%, #daf7eb 45%, #cdece3 100%);
+            background-size: 300% 300%;
+            animation: bgPulse 18s ease-in-out infinite;
+        }
         .hidden-screen { display: none !important; }
-        .bounce { animation: bounce 1s infinite; }
+        .card-animate { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease, background .35s ease; }
+        .card-animate:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12); }
+        .btn-floating { transition: transform .22s ease, box-shadow .22s ease, filter .22s ease; }
+        .btn-floating:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 14px 30px rgba(16, 185, 129, 0.22); filter: brightness(1.02); }
+        .fade-in, .slide-in, .pulse-soft, .highlight-glow { animation-fill-mode: both; }
+        .fade-in { animation: fadeInUp 0.8s ease; }
+        .slide-in { animation: slideIn 0.75s ease; }
+        .pulse-soft { animation: pulse 2.2s ease-in-out infinite; }
+        .highlight-glow { animation: glowPulse 2.4s ease-in-out infinite; }
+        @keyframes bgPulse {
+            0%, 100% { background-position: 50% 0; }
+            50% { background-position: 50% 100%; }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.15); }
+            50% { box-shadow: 0 0 24px 8px rgba(16, 185, 129, 0.12); }
+        }
         @keyframes bounce {
             0%, 100% { transform: translateY(-15%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
             50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
@@ -19,21 +50,23 @@
 </head>
 <body class="text-gray-800 h-screen flex flex-col">
 
-    <header class="bg-green-600 text-white p-4 shadow-md text-center shrink-0 flex justify-between items-center px-6">
+    <header class="bg-green-600 text-white p-4 shadow-md text-center shrink-0 flex justify-between items-center px-6 card-animate fade-in">
         <div class="w-10"></div>
-        <h1 class="text-2xl font-bold">🎯 英語單詞搶答賽</h1>
+        <h1 class="text-2xl font-bold highlight-glow">🎯 英語單詞搶答賽</h1>
         <div id="host-badge" class="hidden bg-yellow-400 text-yellow-900 text-xs font-black px-2.5 py-1 rounded-full shadow-sm">👑 房主</div>
     </header>
 
-    <!-- 訊息提示框 -->
-    <div id="msg-box" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 hidden transition-opacity duration-300">
+    <!-- 訊息提示框 (置中顯示) -->
+    <div id="msg-box" class="fixed inset-0 flex items-center justify-center pointer-events-none z-50 hidden">
+        <div class="bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-opacity duration-300 pointer-events-auto">
         <span id="msg-text">訊息</span>
+        </div>
     </div>
 
     <main class="flex-1 overflow-y-auto p-4 flex justify-center items-start pt-10">
         
         <!-- 畫面 1：登入與自動加入 -->
-        <div id="screen-home" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+        <div id="screen-home" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 card-animate slide-in">
             <h2 class="text-xl font-semibold mb-4 text-center">準備進入遊戲</h2>
             
             <div class="mb-4">
@@ -41,17 +74,17 @@
                 <input type="text" id="input-name" placeholder="輸入你的名字" class="w-full border-2 border-gray-300 rounded-lg p-3 focus:outline-none focus:border-green-500 text-lg">
             </div>
 
-            <button id="btn-enter-game" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition mt-4 shadow-md">進入遊戲</button>
+            <button type="button" id="btn-enter-game" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition mt-4 shadow-md btn-floating">進入遊戲</button>
             <p id="loading-words-msg" class="text-sm text-gray-500 text-center mt-3 animate-pulse">正在自動載入字庫中...</p>
             
             <!-- 強制重置安全按鈕 -->
             <div class="mt-8 pt-4 border-t border-gray-100 text-center">
-                <button id="btn-force-reset" class="text-xs text-red-400 hover:text-red-600 underline">⚠️ 當機或卡死？強制初始化房間</button>
+                <button type="button" id="btn-force-reset" class="text-xs text-red-400 hover:text-red-600 underline">⚠️ 當機或卡死？強制初始化房間</button>
             </div>
         </div>
 
         <!-- 畫面 2：大廳等待區 -->
-        <div id="screen-lobby" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-6 text-center">
+        <div id="screen-lobby" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-6 text-center card-animate slide-in">
             <h2 class="text-2xl font-bold text-gray-800 mb-2">等待玩家加入</h2>
             <p class="text-sm text-gray-500 mb-6">所有在同一網頁的人都會進入此大廳</p>
 
@@ -62,14 +95,14 @@
                 </ul>
             </div>
 
-            <button id="btn-start-game" class="hidden w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl text-xl transition shadow-lg animate-pulse">
+            <button type="button" id="btn-start-game" class="hidden w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 rounded-xl text-xl transition shadow-lg animate-pulse btn-floating">
                 房主專屬：開始遊戲！
             </button>
             <p id="wait-host-msg" class="text-gray-500 italic">等待房主開始遊戲...</p>
         </div>
 
         <!-- 畫面 3：遊戲進行中 (高度緊湊手機版面) -->
-        <div id="screen-game" class="hidden-screen w-full max-w-3xl grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div id="screen-game" class="hidden-screen w-full max-w-3xl grid grid-cols-1 md:grid-cols-3 gap-4 fade-in">
             
             <!-- 左側/上方：主要遊戲區 -->
             <div class="md:col-span-2 bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center justify-center min-h-[380px] relative text-center">
@@ -95,7 +128,7 @@
                         <input type="text" id="input-answer" autocomplete="off" placeholder="在此輸入英文單字..." class="w-full border-4 border-gray-200 rounded-2xl p-4 text-3xl text-center focus:outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100 font-mono shadow-inner mb-4 transition-all tracking-widest text-gray-700 placeholder-gray-300 lowercase">
                         <div class="absolute right-4 top-5 text-gray-300 animate-pulse text-2xl">⌨️</div>
                     </div>
-                    <button id="btn-submit-answer" class="w-full bg-gradient-to-b from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black py-4 rounded-xl text-xl shadow-[0_4px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1 transition-all">
+                    <button type="button" id="btn-submit-answer" class="w-full bg-gradient-to-b from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black py-4 rounded-xl text-xl shadow-[0_4px_0_rgb(4,120,87)] active:shadow-[0_0px_0_rgb(4,120,87)] active:translate-y-1 transition-all btn-floating">
                         🚀 送出搶答！
                     </button>
                 </div>
@@ -124,7 +157,7 @@
         </div>
 
         <!-- 畫面 4：遊戲結束結算 -->
-        <div id="screen-finished" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+        <div id="screen-finished" class="hidden-screen w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center card-animate fade-in">
             <h2 class="text-4xl font-black text-yellow-500 mb-2">🏆 遊戲結束</h2>
             <p class="text-gray-600 mb-6">感謝大家的參與！</p>
             
@@ -136,7 +169,7 @@
 
             <!-- 不會回答生詞按鈕與展示區 -->
             <div class="mb-6 text-left">
-                <button id="btn-show-failed-words" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition text-center">
+                <button type="button" id="btn-show-failed-words" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg text-sm transition text-center">
                     📖 查看本次不會回答的生詞
                 </button>
                 <div id="failed-words-container" class="hidden mt-3 p-3 bg-red-50 border border-red-100 rounded-lg max-h-32 overflow-y-auto">
@@ -148,7 +181,7 @@
 
             <!-- 重新開局按鈕 -->
             <div id="restart-action-section" class="space-y-3">
-                <button id="btn-restart-lobby" class="w-full bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition shadow-md">
+                <button type="button" id="btn-restart-lobby" class="w-full bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition shadow-md">
                     🎮 重置分數並回大廳 (重新開局)
                 </button>
                 <p id="wait-restart-msg" class="text-sm text-gray-500 italic hidden">等待房主重新開局中...</p>
@@ -156,6 +189,43 @@
         </div>
 
     </main>
+
+    <style>
+        /* 淡入淡出訊息動畫 */
+        @keyframes fadeInOutMsg {
+            0% { opacity: 0; transform: translateY(-6px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-6px); }
+        }
+        .fade-in-out-msg { animation: fadeInOutMsg 3s ease-in-out forwards; }
+    </style>
+
+    <script>
+        // 顯示特定訊息並使用淡入淡出效果
+        function showTransientMessage(text, durationMs = 3000) {
+            const box = document.getElementById('msg-box');
+            const span = document.getElementById('msg-text');
+            span.textContent = text;
+            box.classList.remove('hidden');
+            box.classList.remove('fade-in-out-msg');
+            // 重新觸發動畫
+            void box.offsetWidth;
+            box.classList.add('fade-in-out-msg');
+            // 在動畫結束後隱藏元素
+            setTimeout(() => {
+                box.classList.add('hidden');
+            }, durationMs);
+        }
+
+        // 綁定強制重置按鈕示範用（會顯示指定訊息）
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('btn-force-reset');
+            if (btn) btn.addEventListener('click', () => {
+                showTransientMessage('✅ 資料庫已完全重置！你可以重新進入。', 3000);
+            });
+        });
+    </script>
 
     <script type="module" src="script.js"></script>
 
